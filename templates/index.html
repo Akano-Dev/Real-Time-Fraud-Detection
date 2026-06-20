@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FraudGuard — Real-Time Fraud Detection</title>
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Custom theme -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="wrapper">
+
+  <!-- ════════════════════════════════════════
+       SIDEBAR
+  ════════════════════════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">🛡️</div>
+      <div class="brand-name">FraudGuard</div>
+      <div class="brand-sub">AI Fraud Detection</div>
+    </div>
+
+    <p class="sidebar-section-label">Navigation</p>
+    <ul class="sidebar-nav">
+      <li>
+        <a href="#" data-page="dashboard" class="active">
+          <i class="fa-solid fa-gauge-high"></i> Dashboard
+          <span class="live-dot ms-auto"></span>
+        </a>
+      </li>
+      <li>
+        <a href="#" data-page="analytics">
+          <i class="fa-solid fa-chart-line"></i> Analytics
+        </a>
+      </li>
+      <li>
+        <a href="#" data-page="frauds">
+          <i class="fa-solid fa-triangle-exclamation"></i> Fraud Alerts
+          <span id="fraud-count-badge" class="ms-auto fs-12 text-red fw-600"></span>
+        </a>
+      </li>
+      <li>
+        <a href="#" data-page="reports">
+          <i class="fa-solid fa-file-export"></i> Reports
+        </a>
+      </li>
+    </ul>
+
+    <p class="sidebar-section-label">System</p>
+    <ul class="sidebar-nav">
+      <li>
+        <a href="#" onclick="return false;" style="cursor:default">
+          <i class="fa-solid fa-brain"></i> AI Model
+          <span class="ms-auto fs-12 text-green fw-600">{{ model_status }}</span>
+        </a>
+      </li>
+      <li>
+        <a href="#" onclick="return false;" style="cursor:default">
+          <i class="fa-solid fa-database"></i> Database
+          <span class="ms-auto fs-12 text-green fw-600">Connected</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="status-badge">
+        <span class="live-dot"></span>
+        Simulation running
+      </div>
+      <div class="status-badge mt-4" style="margin-top:6px">
+        <i class="fa-solid fa-clock fs-12"></i>
+        <span id="live-clock">--:--:--</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ════════════════════════════════════════
+       MAIN CONTENT
+  ════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div>
+        <div class="header-title" id="header-page-title">Live Dashboard</div>
+        <div class="header-meta">Monitoring all incoming transactions in real time</div>
+      </div>
+      <div class="header-right">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          Live Feed
+        </div>
+        <button class="header-btn" id="export-btn">
+          <i class="fa-solid fa-download"></i> Export CSV
+        </button>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════
+         PAGE: DASHBOARD
+    ══════════════════════════════════════ -->
+    <div id="page-dashboard" class="page-content active">
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+
+        <div class="stat-card blue">
+          <div class="stat-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Transactions</div>
+          <span class="stat-trend trend-up">Live</span>
+        </div>
+
+        <div class="stat-card red">
+          <div class="stat-icon"><i class="fa-solid fa-skull-crossbones"></i></div>
+          <div class="stat-value" id="stat-fraud">0</div>
+          <div class="stat-label">Fraud Detected</div>
+          <span class="stat-trend trend-bad" id="stat-pct">0.00%</span>
+        </div>
+
+        <div class="stat-card green">
+          <div class="stat-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="stat-value" id="stat-legit">0</div>
+          <div class="stat-label">Legitimate</div>
+          <span class="stat-trend trend-up">Safe</span>
+        </div>
+
+        <div class="stat-card yellow">
+          <div class="stat-icon"><i class="fa-solid fa-chart-pie"></i></div>
+          <div class="stat-value" id="stat-avgr">0%</div>
+          <div class="stat-label">Avg Risk Score</div>
+          <span class="stat-trend trend-warn">Risk</span>
+        </div>
+
+      </div>
+      <!-- /Stats Row -->
+
+      <!-- Charts Row -->
+      <div class="charts-grid mb-4">
+
+        <!-- Trend Line Chart -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-line"></i>
+              Fraud Trends (Last 30 min)
+            </div>
+            <span class="fs-12 text-muted">Auto-refreshes every 3s</span>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrapper">
+              <canvas id="chart-trends"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Distribution Doughnut -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-chart-pie"></i>
+              Risk Distribution
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrapper">
+              <canvas id="chart-dist"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /Charts Row -->
+
+      <!-- Transaction Table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-list-ul"></i>
+            Live Transaction Feed
+          </div>
+          <div class="table-controls">
+            <div class="search-wrap">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" class="search-input" id="search-input"
+                     placeholder="Search ID, location, type…">
+            </div>
+            <select class="filter-select" id="risk-filter">
+              <option value="all">All Risk Levels</option>
+              <option value="safe">Safe</option>
+              <option value="suspicious">Suspicious</option>
+              <option value="fraud">Fraud</option>
+            </select>
+          </div>
+        </div>
+        <div class="txn-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Txn ID</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Time</th>
+                <th>Risk Level</th>
+                <th>Fraud Probability</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="txn-tbody">
+              <tr>
+                <td colspan="8" style="text-align:center;padding:50px;color:var(--txt-muted)">
+                  <div class="spinner" style="margin:0 auto 12px"></div>
+                  Loading transactions…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- /Transaction Table -->
+
+    </div>
+    <!-- /page-dashboard -->
+
+    <!-- ══════════════════════════════════════
+         PAGE: ANALYTICS
+    ══════════════════════════════════════ -->
+    <div id="page-analytics" class="page-content">
+
+      <p class="section-title"><i class="fa-solid fa-chart-bar"></i> Hourly Activity Breakdown</p>
+
+      <div class="charts-row-2">
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-clock"></i>
+              Transactions by Hour of Day
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrapper chart-full">
+              <canvas id="chart-hourly"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-wave-square"></i>
+              Fraud Probability Timeline
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrapper chart-full">
+              <canvas id="chart-timeline"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Feature explanation cards -->
+      <p class="section-title"><i class="fa-solid fa-circle-info"></i> Model Feature Weights</p>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center" style="padding:18px">
+              <div style="font-size:26px;color:var(--red);margin-bottom:8px">💰</div>
+              <div class="fw-600" style="font-size:14px">Transaction Amount</div>
+              <div class="fs-12 text-muted mt-4">High amounts at off-hours are strong fraud signals</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center" style="padding:18px">
+              <div style="font-size:26px;color:var(--yellow);margin-bottom:8px">🌍</div>
+              <div class="fw-600" style="font-size:14px">Foreign Origin</div>
+              <div class="fs-12 text-muted mt-4">International transactions raise baseline risk</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center" style="padding:18px">
+              <div style="font-size:26px;color:var(--purple);margin-bottom:8px">⚡</div>
+              <div class="fw-600" style="font-size:14px">Velocity</div>
+              <div class="fs-12 text-muted mt-4">Rapid successive transactions indicate card testing</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card">
+            <div class="card-body text-center" style="padding:18px">
+              <div style="font-size:26px;color:var(--cyan);margin-bottom:8px">📍</div>
+              <div class="fw-600" style="font-size:14px">Location Risk</div>
+              <div class="fs-12 text-muted mt-4">High-risk regions have elevated fraud correlation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- /page-analytics -->
+
+    <!-- ══════════════════════════════════════
+         PAGE: FRAUD ALERTS
+    ══════════════════════════════════════ -->
+    <div id="page-frauds" class="page-content">
+
+      <div class="fraud-banner">
+        <i class="fa-solid fa-circle-radiation"></i>
+        <strong>FRAUD ALERT</strong> — All flagged transactions below have fraud probability ≥ 65%
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-skull-crossbones text-red"></i>
+            Detected Fraud Transactions
+          </div>
+          <span class="badge-risk badge-fraud" id="fraud-count-badge" style="font-size:12px">0 alerts</span>
+        </div>
+        <div class="txn-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Txn ID</th>
+                <th>Amount</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Time</th>
+                <th>Risk Level</th>
+                <th>Fraud Probability</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="fraud-tbody">
+              <tr>
+                <td colspan="8" style="text-align:center;padding:50px;color:var(--txt-muted)">
+                  <div class="spinner" style="margin:0 auto 12px"></div>
+                  Loading fraud alerts…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <!-- /page-frauds -->
+
+    <!-- ══════════════════════════════════════
+         PAGE: REPORTS
+    ══════════════════════════════════════ -->
+    <div id="page-reports" class="page-content">
+
+      <p class="section-title"><i class="fa-solid fa-file-export"></i> Export & Summary</p>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="card" style="border-color:var(--blue)">
+            <div class="card-body" style="padding:24px">
+              <div style="font-size:32px;margin-bottom:12px">📊</div>
+              <div class="fw-600" style="font-size:16px;margin-bottom:6px">Export All Transactions</div>
+              <div class="fs-12 text-muted" style="margin-bottom:16px">
+                Download a complete CSV report of all transactions including fraud predictions, amounts, locations, and timestamps.
+              </div>
+              <button class="header-btn" onclick="exportCSV()" style="width:100%;justify-content:center;padding:10px">
+                <i class="fa-solid fa-download"></i> Download CSV Report
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body" style="padding:24px">
+              <div style="font-size:32px;margin-bottom:12px">🤖</div>
+              <div class="fw-600" style="font-size:16px;margin-bottom:6px">Model Information</div>
+              <div class="fs-12 text-muted" style="margin-bottom:12px">Random Forest Classifier trained on 60,000 synthetic transactions.</div>
+              <div style="font-size:13px;color:var(--txt-secondary)">
+                <div class="d-flex align-center gap-8" style="margin-bottom:6px">
+                  <i class="fa-solid fa-circle-check text-green fs-12"></i> 200 decision trees
+                </div>
+                <div class="d-flex align-center gap-8" style="margin-bottom:6px">
+                  <i class="fa-solid fa-circle-check text-green fs-12"></i> Balanced class weights
+                </div>
+                <div class="d-flex align-center gap-8" style="margin-bottom:6px">
+                  <i class="fa-solid fa-circle-check text-green fs-12"></i> StandardScaler normalisation
+                </div>
+                <div class="d-flex align-center gap-8">
+                  <i class="fa-solid fa-circle-check text-green fs-12"></i> ~96%+ ROC-AUC score
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body" style="padding:24px">
+              <div style="font-size:32px;margin-bottom:12px">⚙️</div>
+              <div class="fw-600" style="font-size:16px;margin-bottom:6px">Risk Thresholds</div>
+              <div class="fs-12 text-muted" style="margin-bottom:12px">Decision boundaries for classification.</div>
+              <div style="font-size:13px">
+                <div class="d-flex align-center gap-8" style="margin-bottom:8px">
+                  <span class="badge-risk badge-safe">Safe</span>
+                  <span class="text-muted fs-12">Probability &lt; 30%</span>
+                </div>
+                <div class="d-flex align-center gap-8" style="margin-bottom:8px">
+                  <span class="badge-risk badge-suspicious">Suspicious</span>
+                  <span class="text-muted fs-12">Probability 30 – 65%</span>
+                </div>
+                <div class="d-flex align-center gap-8">
+                  <span class="badge-risk badge-fraud">Fraud</span>
+                  <span class="text-muted fs-12">Probability ≥ 65%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live stats summary -->
+      <p class="section-title"><i class="fa-solid fa-table"></i> Current Session Summary</p>
+      <div class="card">
+        <div class="card-body">
+          <div class="row g-3 text-center">
+            <div class="col-3">
+              <div class="stat-value text-blue" id="rep-total" style="font-size:22px">—</div>
+              <div class="stat-label">Total Transactions</div>
+            </div>
+            <div class="col-3">
+              <div class="stat-value text-red" id="rep-fraud" style="font-size:22px">—</div>
+              <div class="stat-label">Fraud Count</div>
+            </div>
+            <div class="col-3">
+              <div class="stat-value text-yellow" id="rep-sus" style="font-size:22px">—</div>
+              <div class="stat-label">Suspicious</div>
+            </div>
+            <div class="col-3">
+              <div class="stat-value text-green" id="rep-pct" style="font-size:22px">—</div>
+              <div class="stat-label">Fraud Rate</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- /page-reports -->
+
+  </div><!-- /main-content -->
+</div><!-- /wrapper -->
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Dashboard logic -->
+<script src="/static/js/dashboard.js"></script>
+
+<script>
+  // Extra: keep reports page stats synced
+  setInterval(async () => {
+    if (typeof apiFetch === 'function') {
+      const d = await apiFetch('/api/stats');
+      if (!d) return;
+      ['rep-total','rep-fraud','rep-sus','rep-pct'].forEach((id, i) => {
+        const vals = [d.total, d.fraud, d.suspicious, d.fraud_percentage + '%'];
+        const el = document.getElementById(id);
+        if (el) el.textContent = vals[i];
+      });
+    }
+  }, 4000);
+</script>
+
+</body>
+</html>
